@@ -21,9 +21,11 @@ const entities_1 = require("../../entities");
 const realtime_gateway_1 = require("../realtime/realtime.gateway");
 let CallsService = class CallsService {
     calls;
+    users;
     gateway;
-    constructor(calls, gateway) {
+    constructor(calls, users, gateway) {
         this.calls = calls;
+        this.users = users;
         this.gateway = gateway;
     }
     async initiate(callerId, dto) {
@@ -35,8 +37,15 @@ let CallsService = class CallsService {
             channel_name: (0, uuid_1.v4)(),
             status: 'ringing',
         }));
-        this.gateway.emitToUser(dto.callee_id, 'call:incoming', call);
-        this.gateway.emitToUser(callerId, 'call:outgoing', call);
+        const caller = await this.users.findOne({ where: { id: callerId } });
+        const payload = {
+            ...call,
+            caller: caller
+                ? { id: caller.id, display_name: caller.display_name, avatar_url: caller.avatar_url }
+                : null,
+        };
+        this.gateway.emitToUser(dto.callee_id, 'call:incoming', payload);
+        this.gateway.emitToUser(callerId, 'call:outgoing', payload);
         return call;
     }
     async updateStatus(userId, callId, status) {
@@ -61,20 +70,42 @@ let CallsService = class CallsService {
         return updated;
     }
     async history(userId) {
-        return this.calls
+        const calls = await this.calls
             .createQueryBuilder('c')
             .where('c.caller_id = :uid OR c.callee_id = :uid', { uid: userId })
             .orderBy('c.created_at', 'DESC')
             .limit(100)
             .getMany();
+        const userIds = new Set();
+        calls.forEach((c) => {
+            if (c.caller_id)
+                userIds.add(c.caller_id);
+            if (c.callee_id)
+                userIds.add(c.callee_id);
+        });
+        const userList = userIds.size
+            ? await this.users
+                .createQueryBuilder('u')
+                .select(['u.id', 'u.display_name', 'u.avatar_url'])
+                .whereInIds([...userIds])
+                .getMany()
+            : [];
+        const userMap = new Map(userList.map((u) => [u.id, u]));
+        return calls.map((c) => ({
+            ...c,
+            caller: c.caller_id ? (userMap.get(c.caller_id) ?? null) : null,
+            callee: c.callee_id ? (userMap.get(c.callee_id) ?? null) : null,
+        }));
     }
 };
 exports.CallsService = CallsService;
 exports.CallsService = CallsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.Call)),
-    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => realtime_gateway_1.RealtimeGateway))),
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.User)),
+    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => realtime_gateway_1.RealtimeGateway))),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         realtime_gateway_1.RealtimeGateway])
 ], CallsService);
 //# sourceMappingURL=calls.service.js.map

@@ -24,32 +24,35 @@ export class ConversationsService {
 
   /** List all conversations for a user, with the other participant's profile embedded. */
   async list(userId: string) {
-    const rows = await this.parts
-      .createQueryBuilder('cp')
-      .innerJoin('conversations', 'c', 'c.id = cp.conversation_id')
-      .where('cp.user_id = :userId', { userId })
-      .andWhere('cp.is_hidden = false')
-      .orderBy('cp.is_pinned', 'DESC')
-      .addOrderBy('c.last_message_at', 'DESC')
-      .select([
-        'cp.id AS cp_id',
-        'cp.is_muted AS is_muted',
-        'cp.is_pinned AS is_pinned',
-        'cp.unread_count AS unread_count',
-        'cp.lock_pin AS lock_pin',
-        'cp.cleared_at AS cleared_at',
-        'c.id AS id',
-        'c.type AS type',
-        'c.name AS name',
-        'c.avatar_url AS avatar_url',
-        'c.last_message_id AS last_message_id',
-        'c.last_message_at AS last_message_at',
-        'c.last_message_preview AS last_message_preview',
-        'c.disappearing_timer AS disappearing_timer',
-        'c.created_at AS created_at',
-        'c.updated_at AS updated_at',
-      ])
-      .getRawMany();
+    const rows = await this.ds.query(
+      `SELECT
+        cp.id AS cp_id,
+        cp.is_muted,
+        cp.is_pinned,
+        cp.unread_count,
+        cp.lock_pin,
+        cp.cleared_at,
+        c.id,
+        c.type,
+        COALESCE(comm.name, c.name) AS name,
+        c.avatar_url,
+        c.last_message_id,
+        c.last_message_at,
+        c.last_message_preview,
+        c.disappearing_timer,
+        c.send_permission,
+        c.edit_permission,
+        c.community_id,
+        c.created_at,
+        c.updated_at
+      FROM conversation_participants cp
+      INNER JOIN conversations c ON c.id = cp.conversation_id
+      LEFT JOIN communities comm ON comm.id = c.community_id
+      WHERE cp.user_id = $1
+        AND cp.is_hidden = false
+      ORDER BY cp.is_pinned DESC, c.last_message_at DESC`,
+      [userId],
+    );
 
     const archivedRows = await this.arch.find({ where: { user_id: userId } });
     const archivedSet = new Set(archivedRows.map(a => a.conversation_id));
@@ -72,6 +75,9 @@ export class ConversationsService {
         last_message_at: row.last_message_at,
         last_message_preview: row.last_message_preview,
         disappearing_timer: row.disappearing_timer,
+        send_permission: row.send_permission,
+        edit_permission: row.edit_permission,
+        community_id: row.community_id,
         created_at: row.created_at,
         updated_at: row.updated_at,
         is_muted: row.is_muted,
@@ -96,6 +102,16 @@ export class ConversationsService {
     const conv = await this.convs.findOne({ where: { id: conversationId } });
     if (!conv) throw new NotFoundException('Conversation not found');
 
+    // If this conversation belongs to a community, show the community name
+    let displayName = conv.name;
+    if (conv.community_id) {
+      const communityRow = await this.ds.query(
+        'SELECT name FROM communities WHERE id = $1 LIMIT 1',
+        [conv.community_id],
+      );
+      if (communityRow?.[0]?.name) displayName = communityRow[0].name;
+    }
+
     const participants = await this.parts
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.user', 'user')
@@ -110,6 +126,7 @@ export class ConversationsService {
 
     return {
       ...conv,
+      name: displayName,
       is_muted: me.is_muted,
       is_pinned: me.is_pinned,
       unread_count: me.unread_count,

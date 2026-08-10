@@ -157,7 +157,7 @@ let CommunitiesService = class CommunitiesService {
         }
         const announcement = await this.convs.save(this.convs.create({
             type: 'group',
-            name: 'Announcements',
+            name: dto.name.trim(),
             description: `${community.name} community announcements`,
             created_by: userId,
             send_permission: 'admins',

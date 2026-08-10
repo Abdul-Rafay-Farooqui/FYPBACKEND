@@ -60,29 +60,30 @@ export class GroupsService {
 
   // ---------- CRUD ----------
   async list(userId: string) {
-    const parts = await this.parts
-      .createQueryBuilder('cp')
-      .innerJoin('conversations', 'c', 'c.id = cp.conversation_id')
-      .where('cp.user_id = :userId', { userId })
-      .andWhere("c.type = 'group'")
-      .orderBy('c.last_message_at', 'DESC')
-      .select([
-        'cp.role AS role',
-        'cp.is_muted AS is_muted',
-        'cp.is_pinned AS is_pinned',
-        'cp.unread_count AS unread_count',
-        'c.id AS id',
-        'c.name AS name',
-        'c.description AS description',
-        'c.avatar_url AS avatar_url',
-        'c.created_by AS created_by',
-        'c.send_permission AS send_permission',
-        'c.edit_permission AS edit_permission',
-        'c.community_id AS community_id',
-        'c.last_message_at AS last_message_at',
-        'c.last_message_preview AS last_message_preview',
-      ])
-      .getRawMany();
+    const parts = await this.convs.manager.query(
+      `SELECT
+        cp.role,
+        cp.is_muted,
+        cp.is_pinned,
+        cp.unread_count,
+        c.id,
+        COALESCE(comm.name, c.name) AS name,
+        c.description,
+        c.avatar_url,
+        c.created_by,
+        c.send_permission,
+        c.edit_permission,
+        c.community_id,
+        c.last_message_at,
+        c.last_message_preview
+      FROM conversation_participants cp
+      INNER JOIN conversations c ON c.id = cp.conversation_id
+      LEFT JOIN communities comm ON comm.id = c.community_id
+      WHERE cp.user_id = $1
+        AND c.type = 'group'
+      ORDER BY c.last_message_at DESC`,
+      [userId],
+    );
 
     // attach member_count
     const result = [];
