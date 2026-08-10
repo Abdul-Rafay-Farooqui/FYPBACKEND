@@ -76,9 +76,9 @@ export class GroupsService {
         c.community_id,
         c.last_message_at,
         c.last_message_preview
-      FROM conversation_participants cp
-      INNER JOIN conversations c ON c.id = cp.conversation_id
-      LEFT JOIN communities comm ON comm.id = c.community_id
+      FROM public.conversation_participants cp
+      INNER JOIN public.conversations c ON c.id = cp.conversation_id
+      LEFT JOIN public.communities comm ON comm.id = c.community_id
       WHERE cp.user_id = $1
         AND c.type = 'group'
       ORDER BY c.last_message_at DESC`,

@@ -75,6 +75,8 @@ exports.AppModule = AppModule = __decorate([
                     username: getRequiredEnv(config, "DB_USERNAME"),
                     password: getRequiredEnv(config, "DB_PASSWORD"),
                     database: getRequiredEnv(config, "DB_NAME"),
+                    ssl: config.get("DB_SSL") === "true" ? { rejectUnauthorized: false } : false,
+                    schema: "public",
                     entities: [
                         entities_1.User,
                         entities_1.Contact,

@@ -131,6 +131,8 @@ const getRequiredEnv = (config: ConfigService, key: string): string => {
         username: getRequiredEnv(config, "DB_USERNAME"),
         password: getRequiredEnv(config, "DB_PASSWORD"),
         database: getRequiredEnv(config, "DB_NAME"),
+        ssl: config.get<string>("DB_SSL") === "true" ? { rejectUnauthorized: false } : false,
+        schema: "public",
         entities: [
           User,
           Contact,

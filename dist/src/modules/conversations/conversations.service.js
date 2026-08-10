@@ -90,9 +90,9 @@ let ConversationsService = class ConversationsService {
         c.community_id,
         c.created_at,
         c.updated_at
-      FROM conversation_participants cp
-      INNER JOIN conversations c ON c.id = cp.conversation_id
-      LEFT JOIN communities comm ON comm.id = c.community_id
+      FROM public.conversation_participants cp
+      INNER JOIN public.conversations c ON c.id = cp.conversation_id
+      LEFT JOIN public.communities comm ON comm.id = c.community_id
       WHERE cp.user_id = $1
         AND cp.is_hidden = false
       ORDER BY cp.is_pinned DESC, c.last_message_at DESC`, [userId]);
@@ -143,7 +143,7 @@ let ConversationsService = class ConversationsService {
             throw new common_1.NotFoundException('Conversation not found');
         let displayName = conv.name;
         if (conv.community_id) {
-            const communityRow = await this.ds.query('SELECT name FROM communities WHERE id = $1 LIMIT 1', [conv.community_id]);
+            const communityRow = await this.ds.query('SELECT name FROM public.communities WHERE id = $1 LIMIT 1', [conv.community_id]);
             if (communityRow?.[0]?.name)
                 displayName = communityRow[0].name;
         }
@@ -172,9 +172,9 @@ let ConversationsService = class ConversationsService {
     async getOrCreate1on1(userId, otherUserId) {
         if (userId === otherUserId)
             throw new common_1.BadRequestException('Cannot chat with yourself');
-        const existing = await this.ds.query(`SELECT c.id FROM conversations c
-       INNER JOIN conversation_participants p1 ON p1.conversation_id = c.id AND p1.user_id = $1
-       INNER JOIN conversation_participants p2 ON p2.conversation_id = c.id AND p2.user_id = $2
+        const existing = await this.ds.query(`SELECT c.id FROM public.conversations c
+       INNER JOIN public.conversation_participants p1 ON p1.conversation_id = c.id AND p1.user_id = $1
+       INNER JOIN public.conversation_participants p2 ON p2.conversation_id = c.id AND p2.user_id = $2
        WHERE c.type = '1on1' LIMIT 1`, [userId, otherUserId]);
         let convId;
         if (existing.length) {
