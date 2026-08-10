@@ -1,0 +1,21 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  Conversation,
+  ConversationParticipant,
+  User,
+} from '../../entities';
+import { RealtimeModule } from '../realtime/realtime.module';
+import { GroupsController } from './groups.controller';
+import { GroupsService } from './groups.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Conversation, ConversationParticipant, User]),
+    RealtimeModule,
+  ],
+  controllers: [GroupsController],
+  providers: [GroupsService],
+  exports: [GroupsService],
+})
+export class GroupsModule {}
