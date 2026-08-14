@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
+const path_1 = require("path");
 const entities_1 = require("./entities");
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
@@ -64,7 +65,10 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
-                envFilePath: [".env"],
+                envFilePath: [
+                    (0, path_1.join)(process.cwd(), "backend/.env"),
+                    (0, path_1.join)(process.cwd(), ".env"),
+                ],
             }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 inject: [config_1.ConfigService],
@@ -75,7 +79,9 @@ exports.AppModule = AppModule = __decorate([
                     username: getRequiredEnv(config, "DB_USERNAME"),
                     password: getRequiredEnv(config, "DB_PASSWORD"),
                     database: getRequiredEnv(config, "DB_NAME"),
-                    ssl: config.get("DB_SSL") === "true" ? { rejectUnauthorized: false } : false,
+                    ssl: config.get("DB_SSL") === "true"
+                        ? { rejectUnauthorized: false }
+                        : false,
                     schema: "public",
                     entities: [
                         entities_1.User,

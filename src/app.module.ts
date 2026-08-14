@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { join } from "path";
 import {
   ArchivedConversation,
   BlockedUser,
@@ -120,7 +121,10 @@ const getRequiredEnv = (config: ConfigService, key: string): string => {
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env"],
+      envFilePath: [
+        join(process.cwd(), "backend/.env"),
+        join(process.cwd(), ".env"),
+      ],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -131,7 +135,10 @@ const getRequiredEnv = (config: ConfigService, key: string): string => {
         username: getRequiredEnv(config, "DB_USERNAME"),
         password: getRequiredEnv(config, "DB_PASSWORD"),
         database: getRequiredEnv(config, "DB_NAME"),
-        ssl: config.get<string>("DB_SSL") === "true" ? { rejectUnauthorized: false } : false,
+        ssl:
+          config.get<string>("DB_SSL") === "true"
+            ? { rejectUnauthorized: false }
+            : false,
         schema: "public",
         entities: [
           User,
