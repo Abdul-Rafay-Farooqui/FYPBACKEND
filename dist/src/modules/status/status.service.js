@@ -53,9 +53,21 @@ let StatusService = class StatusService {
         }
         const hiddenSet = new Set(dto.hide_from || []);
         const myContacts = await this.contacts.find({ where: { user_id: userId } });
-        myContacts.forEach((c) => {
-            if (!hiddenSet.has(c.contact_id)) {
-                this.gateway.emitToUser(c.contact_id, 'status:new', {
+        const theyAddedMe = await this.contacts.find({ where: { contact_id: userId } });
+        const convPartners = await this.contacts.manager.query(`SELECT DISTINCT cp2.user_id
+       FROM conversation_participants cp1
+       INNER JOIN conversation_participants cp2
+         ON cp2.conversation_id = cp1.conversation_id AND cp2.user_id <> $1
+       INNER JOIN conversations c ON c.id = cp1.conversation_id AND c.type = '1on1'
+       WHERE cp1.user_id = $1`, [userId]);
+        const allNotifyIds = Array.from(new Set([
+            ...myContacts.map((c) => c.contact_id),
+            ...theyAddedMe.map((c) => c.user_id),
+            ...convPartners.map((r) => r.user_id),
+        ]));
+        allNotifyIds.forEach((cid) => {
+            if (!hiddenSet.has(cid)) {
+                this.gateway.emitToUser(cid, 'status:new', {
                     status_id: status.id,
                     user_id: userId,
                 });
@@ -69,27 +81,36 @@ let StatusService = class StatusService {
             order: { created_at: 'DESC' },
         });
         const myContacts = await this.contacts.find({ where: { user_id: userId } });
-        const contactIds = myContacts.map((c) => c.contact_id);
+        const theyAddedMe = await this.contacts.find({ where: { contact_id: userId } });
+        const convPartners = await this.contacts.manager.query(`SELECT DISTINCT cp2.user_id
+       FROM conversation_participants cp1
+       INNER JOIN conversation_participants cp2
+         ON cp2.conversation_id = cp1.conversation_id AND cp2.user_id <> $1
+       INNER JOIN conversations c ON c.id = cp1.conversation_id AND c.type = '1on1'
+       WHERE cp1.user_id = $1`, [userId]);
+        const visibleIds = Array.from(new Set([
+            ...myContacts.map((c) => c.contact_id),
+            ...theyAddedMe.map((c) => c.user_id),
+            ...convPartners.map((r) => r.user_id),
+        ])).filter((id) => id !== userId);
         const recent = [];
-        if (contactIds.length) {
+        if (visibleIds.length) {
             const rawRows = await this.su
                 .createQueryBuilder('s')
                 .where('s.expires_at > NOW()')
-                .andWhere('s.user_id IN (:...ids)', { ids: contactIds })
+                .andWhere('s.user_id IN (:...ids)', { ids: visibleIds })
                 .andWhere(`NOT EXISTS (SELECT 1 FROM status_hidden_from h WHERE h.status_id = s.id AND h.user_id = :me)`, { me: userId })
                 .orderBy('s.created_at', 'DESC')
                 .getMany();
             recent.push(...rawRows);
         }
         const userIds = Array.from(new Set([userId, ...recent.map((r) => r.user_id)]));
-        const users = await this.users.find({
-            where: userIds.map((id) => ({ id })),
-        });
+        const users = await this.users.find({ where: userIds.map((id) => ({ id })) });
         const userMap = new Map(users.map((u) => [u.id, u]));
-        const allIds = [...mine, ...recent].map((s) => s.id);
-        const views = allIds.length
+        const statusIds = [...mine, ...recent].map((s) => s.id);
+        const views = statusIds.length
             ? await this.sv.find({
-                where: allIds.map((sid) => ({ status_id: sid, viewer_id: userId })),
+                where: statusIds.map((sid) => ({ status_id: sid, viewer_id: userId })),
             })
             : [];
         const viewedSet = new Set(views.map((v) => v.status_id));
@@ -105,18 +126,12 @@ let StatusService = class StatusService {
                         statuses: [],
                     });
                 }
-                byUser.get(s.user_id).statuses.push({
-                    ...s,
-                    viewed_by_me: viewedSet.has(s.id),
-                });
+                byUser.get(s.user_id).statuses.push({ ...s, viewed_by_me: viewedSet.has(s.id) });
             }
             return Array.from(byUser.values());
         };
         return {
-            my_statuses: mine.map((s) => ({
-                ...s,
-                viewed_by_me: true,
-            })),
+            my_statuses: mine.map((s) => ({ ...s, viewed_by_me: true })),
             recent: group(recent),
         };
     }
