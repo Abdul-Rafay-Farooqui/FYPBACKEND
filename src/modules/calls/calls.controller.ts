@@ -1,11 +1,61 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ConfigService } from '@nestjs/config';
 import { User } from '../../entities';
 import { CallsService } from './calls.service';
 
 @Controller('calls')
 export class CallsController {
-  constructor(private readonly svc: CallsService) {}
+  constructor(
+    private readonly svc: CallsService,
+    private readonly config: ConfigService,
+  ) {}
+
+  @Get('turn-credentials')
+  async getTurnCredentials() {
+    const apiKey = this.config.get<string>('METERED_API_KEY');
+    const appName = this.config.get<string>('METERED_APP_NAME');
+
+    // If metered credentials are configured, fetch live credentials
+    if (apiKey && appName) {
+      try {
+        const res = await fetch(
+          `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`,
+        );
+        if (res.ok) {
+          const iceServers = await res.json();
+          return { iceServers };
+        }
+      } catch (e) {
+        // fall through to hardcoded fallback
+      }
+    }
+
+    // Fallback: well-known public STUN + open relay TURN
+    return {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+      ],
+    };
+  }
 
   @Get()
   history(@CurrentUser() user: User) {
