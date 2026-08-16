@@ -19,21 +19,17 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../../entities");
 let TeacherService = class TeacherService {
     subjectAssignments;
-    enrollments;
     quizzes;
     homework;
     announcements;
     schedules;
-    classBatchSections;
     courseEnrollments;
-    constructor(subjectAssignments, enrollments, quizzes, homework, announcements, schedules, classBatchSections, courseEnrollments) {
+    constructor(subjectAssignments, quizzes, homework, announcements, schedules, courseEnrollments) {
         this.subjectAssignments = subjectAssignments;
-        this.enrollments = enrollments;
         this.quizzes = quizzes;
         this.homework = homework;
         this.announcements = announcements;
         this.schedules = schedules;
-        this.classBatchSections = classBatchSections;
         this.courseEnrollments = courseEnrollments;
     }
     async getCourseOverview(courseId, teacherId) {
@@ -71,21 +67,12 @@ let TeacherService = class TeacherService {
                 subject_id: assignment.subject_id,
             },
         });
-        const allCBS = await this.classBatchSections.find({
-            where: { class: { institute_id: assignment.institute_id } },
-            relations: ["class", "batch", "section"],
-        });
-        const cbsIds = allCBS.map((cbs) => cbs.id);
         const schedules = await this.schedules.find({
-            where: cbsIds.length > 0
-                ? {
-                    teacher_id: teacherId,
-                    class_batch_section_id: (0, typeorm_2.In)(cbsIds),
-                }
-                : { teacher_id: teacherId },
-            relations: ["class_batch_section", "subject"],
-            order: { day_of_week: "ASC", start_time: "ASC" },
-            take: 10,
+            where: {
+                subject_id: assignment.subject_id,
+            },
+            relations: ['class_batch_section', 'class_batch_section.class', 'class_batch_section.batch', 'class_batch_section.section', 'subject'],
+            order: { day_of_week: 'ASC', start_time: 'ASC' },
         });
         const recentAnnouncements = await this.announcements.find({
             where: {
@@ -112,16 +99,12 @@ exports.TeacherService = TeacherService;
 exports.TeacherService = TeacherService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.SubjectAssignment)),
-    __param(1, (0, typeorm_1.InjectRepository)(entities_1.StudentEnrollment)),
-    __param(2, (0, typeorm_1.InjectRepository)(entities_1.Quiz)),
-    __param(3, (0, typeorm_1.InjectRepository)(entities_1.Homework)),
-    __param(4, (0, typeorm_1.InjectRepository)(entities_1.Announcement)),
-    __param(5, (0, typeorm_1.InjectRepository)(entities_1.Schedule)),
-    __param(6, (0, typeorm_1.InjectRepository)(entities_1.ClassBatchSection)),
-    __param(7, (0, typeorm_1.InjectRepository)(entities_1.CourseEnrollment)),
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.Quiz)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.Homework)),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.Announcement)),
+    __param(4, (0, typeorm_1.InjectRepository)(entities_1.Schedule)),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.CourseEnrollment)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

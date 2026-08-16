@@ -20,6 +20,8 @@ import {
   CourseEnrollment,
   Batch,
   Section,
+  Schedule,
+  SubjectAssignment,
 } from '../../entities';
 
 @Module({
@@ -42,6 +44,8 @@ import {
       CourseEnrollment,
       Batch,
       Section,
+      Schedule,
+      SubjectAssignment,
     ]),
   ],
   controllers: [DashboardController],

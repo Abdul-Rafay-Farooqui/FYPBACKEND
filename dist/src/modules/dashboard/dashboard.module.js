@@ -36,6 +36,8 @@ exports.DashboardModule = DashboardModule = __decorate([
                 entities_1.CourseEnrollment,
                 entities_1.Batch,
                 entities_1.Section,
+                entities_1.Schedule,
+                entities_1.SubjectAssignment,
             ]),
         ],
         controllers: [dashboard_controller_1.DashboardController],

@@ -4,12 +4,10 @@ import { TeacherController } from "./teacher.controller";
 import { TeacherService } from "./teacher.service";
 import {
   SubjectAssignment,
-  StudentEnrollment,
   Quiz,
   Homework,
   Announcement,
   Schedule,
-  ClassBatchSection,
   CourseEnrollment,
 } from "../../entities";
 
@@ -17,12 +15,10 @@ import {
   imports: [
     TypeOrmModule.forFeature([
       SubjectAssignment,
-      StudentEnrollment,
       Quiz,
       Homework,
       Announcement,
       Schedule,
-      ClassBatchSection,
       CourseEnrollment,
     ]),
   ],

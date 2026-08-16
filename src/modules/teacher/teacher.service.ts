@@ -1,14 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository } from "typeorm";
 import {
   SubjectAssignment,
-  StudentEnrollment,
   Quiz,
   Homework,
   Announcement,
   Schedule,
-  ClassBatchSection,
   CourseEnrollment,
 } from "../../entities";
 
@@ -17,8 +15,6 @@ export class TeacherService {
   constructor(
     @InjectRepository(SubjectAssignment)
     private readonly subjectAssignments: Repository<SubjectAssignment>,
-    @InjectRepository(StudentEnrollment)
-    private readonly enrollments: Repository<StudentEnrollment>,
     @InjectRepository(Quiz)
     private readonly quizzes: Repository<Quiz>,
     @InjectRepository(Homework)
@@ -27,8 +23,6 @@ export class TeacherService {
     private readonly announcements: Repository<Announcement>,
     @InjectRepository(Schedule)
     private readonly schedules: Repository<Schedule>,
-    @InjectRepository(ClassBatchSection)
-    private readonly classBatchSections: Repository<ClassBatchSection>,
     @InjectRepository(CourseEnrollment)
     private readonly courseEnrollments: Repository<CourseEnrollment>,
   ) {}
@@ -79,26 +73,13 @@ export class TeacherService {
       },
     });
 
-    // Get all class-batch-sections for this institute
-    const allCBS = await this.classBatchSections.find({
-      where: { class: { institute_id: assignment.institute_id } },
-      relations: ["class", "batch", "section"],
-    });
-
-    const cbsIds = allCBS.map((cbs) => cbs.id);
-
-    // Get schedules for this course
+    // Get schedules for this specific subject/course
     const schedules = await this.schedules.find({
-      where:
-        cbsIds.length > 0
-          ? {
-              teacher_id: teacherId,
-              class_batch_section_id: In(cbsIds),
-            }
-          : { teacher_id: teacherId },
-      relations: ["class_batch_section", "subject"],
-      order: { day_of_week: "ASC", start_time: "ASC" },
-      take: 10,
+      where: {
+        subject_id: assignment.subject_id,
+      },
+      relations: ['class_batch_section', 'class_batch_section.class', 'class_batch_section.batch', 'class_batch_section.section', 'subject'],
+      order: { day_of_week: 'ASC', start_time: 'ASC' },
     });
 
     // Get recent announcements for THIS specific course

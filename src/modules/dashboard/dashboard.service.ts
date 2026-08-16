@@ -19,6 +19,8 @@ import {
   CourseEnrollment,
   Batch,
   Section,
+  Schedule,
+  SubjectAssignment,
 } from '../../entities';
 
 @Injectable()
@@ -52,6 +54,10 @@ export class DashboardService {
     private readonly batches: Repository<Batch>,
     @InjectRepository(Section)
     private readonly sections: Repository<Section>,
+    @InjectRepository(Schedule)
+    private readonly schedules: Repository<Schedule>,
+    @InjectRepository(SubjectAssignment)
+    private readonly subjectAssignments: Repository<SubjectAssignment>,
   ) {}
 
   async getStudentOverview(userId: string, instituteId: string) {
@@ -212,6 +218,24 @@ export class DashboardService {
       take: 5,
     });
 
+    // Get weekly schedules assigned to this teacher
+    // Find via direct teacher_id OR via subject assignments (subjects this teacher teaches)
+    const teacherSubjectAssignments = await this.subjectAssignments.find({
+      where: { teacher_id: userId, institute_id: instituteId },
+    });
+    const teacherSubjectIds = teacherSubjectAssignments.map((a) => a.subject_id);
+
+    const weeklySchedules = await this.schedules.find({
+      where: teacherSubjectIds.length > 0
+        ? [
+            { teacher_id: userId },
+            { subject_id: In(teacherSubjectIds) },
+          ]
+        : { teacher_id: userId },
+      relations: ['class_batch_section', 'class_batch_section.class', 'class_batch_section.batch', 'class_batch_section.section', 'subject'],
+      order: { day_of_week: 'ASC', start_time: 'ASC' },
+    });
+
     // Get recent submissions
     const recentSubmissions = await this.submissions.find({
       where: { homework: { teacher_id: userId } },
@@ -229,6 +253,7 @@ export class DashboardService {
         upcomingClassesCount: upcomingClasses.length,
       },
       upcomingClasses,
+      weeklySchedules,
       recentSubmissions,
     };
   }

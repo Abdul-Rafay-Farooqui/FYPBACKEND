@@ -32,7 +32,9 @@ let DashboardService = class DashboardService {
     courseEnrollments;
     batches;
     sections;
-    constructor(members, homework, submissions, attendance, results, announcements, quizzes, quizAttempts, liveClasses, resources, enrollments, courseEnrollments, batches, sections) {
+    schedules;
+    subjectAssignments;
+    constructor(members, homework, submissions, attendance, results, announcements, quizzes, quizAttempts, liveClasses, resources, enrollments, courseEnrollments, batches, sections, schedules, subjectAssignments) {
         this.members = members;
         this.homework = homework;
         this.submissions = submissions;
@@ -47,6 +49,8 @@ let DashboardService = class DashboardService {
         this.courseEnrollments = courseEnrollments;
         this.batches = batches;
         this.sections = sections;
+        this.schedules = schedules;
+        this.subjectAssignments = subjectAssignments;
     }
     async getStudentOverview(userId, instituteId) {
         const enrollments = await this.courseEnrollments.find({
@@ -163,6 +167,20 @@ let DashboardService = class DashboardService {
             order: { scheduled_at: 'ASC' },
             take: 5,
         });
+        const teacherSubjectAssignments = await this.subjectAssignments.find({
+            where: { teacher_id: userId, institute_id: instituteId },
+        });
+        const teacherSubjectIds = teacherSubjectAssignments.map((a) => a.subject_id);
+        const weeklySchedules = await this.schedules.find({
+            where: teacherSubjectIds.length > 0
+                ? [
+                    { teacher_id: userId },
+                    { subject_id: (0, typeorm_2.In)(teacherSubjectIds) },
+                ]
+                : { teacher_id: userId },
+            relations: ['class_batch_section', 'class_batch_section.class', 'class_batch_section.batch', 'class_batch_section.section', 'subject'],
+            order: { day_of_week: 'ASC', start_time: 'ASC' },
+        });
         const recentSubmissions = await this.submissions.find({
             where: { homework: { teacher_id: userId } },
             relations: ['homework', 'student'],
@@ -178,6 +196,7 @@ let DashboardService = class DashboardService {
                 upcomingClassesCount: upcomingClasses.length,
             },
             upcomingClasses,
+            weeklySchedules,
             recentSubmissions,
         };
     }
@@ -241,7 +260,11 @@ exports.DashboardService = DashboardService = __decorate([
     __param(11, (0, typeorm_1.InjectRepository)(entities_1.CourseEnrollment)),
     __param(12, (0, typeorm_1.InjectRepository)(entities_1.Batch)),
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.Section)),
+    __param(14, (0, typeorm_1.InjectRepository)(entities_1.Schedule)),
+    __param(15, (0, typeorm_1.InjectRepository)(entities_1.SubjectAssignment)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

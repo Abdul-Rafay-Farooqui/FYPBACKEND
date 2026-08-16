@@ -20,12 +20,10 @@ exports.TeacherModule = TeacherModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
                 entities_1.SubjectAssignment,
-                entities_1.StudentEnrollment,
                 entities_1.Quiz,
                 entities_1.Homework,
                 entities_1.Announcement,
                 entities_1.Schedule,
-                entities_1.ClassBatchSection,
                 entities_1.CourseEnrollment,
             ]),
         ],
